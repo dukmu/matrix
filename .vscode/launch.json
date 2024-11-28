@@ -9,7 +9,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/main.exe",
-            "args": [],
+            "args": [
+                "10",
+                "34"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -29,6 +32,5 @@
                 }
             ]
         }
-
     ]
 }

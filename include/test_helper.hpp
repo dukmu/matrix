@@ -5,64 +5,6 @@
 #include "timeit.h"
 #include <string>
 
-#define IS_EQUAL(lhs, rhs) (std::abs((lhs) - (rhs)) < 1e-3)
-
-template <typename T>
-void assert_eq(const fkZQ::Matrix<T> &lhs, const fkZQ::Matrix<T> &rhs)
-{
-    if (lhs.rows != rhs.rows || lhs.cols != rhs.cols)
-    {
-        std::string msg = "Matrix size not equal: ";
-        msg += std::to_string(lhs.rows) + "x" + std::to_string(lhs.cols) + " vs ";
-        msg += std::to_string(rhs.rows) + "x" + std::to_string(rhs.cols);
-        std::cerr << msg << std::endl;
-        return;
-    }
-
-    for (int i = 0; i < lhs.rows; ++i)
-    {
-        for (int j = 0; j < lhs.cols; ++j)
-        {
-            if (!IS_EQUAL(lhs.at(i, j), rhs.at(i, j)))
-            {
-                std::string msg = "Matrix element not equal at (" + std::to_string(i) + ", " + std::to_string(j) + "): ";
-                msg += std::to_string(lhs.at(i, j)) + " vs " + std::to_string(rhs.at(i, j));
-                std::cerr << msg << std::endl;
-                return;
-            }
-        }
-    }
-    std::cout << "Matrix equal" << std::endl;
-}
-
-template <typename T>
-void assert_eq(const cv::Mat &lhs, const fkZQ::Matrix<T> &rhs)
-{
-    if (lhs.rows != rhs.rows || lhs.cols != rhs.cols)
-    {
-        std::string msg = "Matrix size not equal: ";
-        msg += std::to_string(lhs.rows) + "x" + std::to_string(lhs.cols) + " vs ";
-        msg += std::to_string(rhs.rows) + "x" + std::to_string(rhs.cols);
-        std::cerr << msg << std::endl;
-        return;
-    }
-
-    for (int i = 0; i < lhs.rows; ++i)
-    {
-        for (int j = 0; j < lhs.cols; ++j)
-        {
-            if (!IS_EQUAL(lhs.at<T>(i, j), rhs.at(i, j)))
-            {
-                std::string msg = "Matrix element not equal at (" + std::to_string(i) + ", " + std::to_string(j) + "): ";
-                msg += std::to_string(lhs.at<T>(i, j)) + " vs " + std::to_string(rhs.at(i, j));
-                std::cerr << msg << std::endl;
-                return;
-            }
-        }
-    }
-    std::cout << "Matrix equal" << std::endl;
-}
-
 template <typename T>
 cv::Mat toCvMat(const fkZQ::Matrix<T> &mat)
 {
@@ -102,3 +44,27 @@ cv::Mat toCvMat(const fkZQ::Matrix<T> &mat)
     }
     return ret;
 }
+
+template <typename T>
+float compare(const cv::Mat &cvMat, const fkZQ::Matrix<T> &mat)
+{
+    cv::Mat cvMat2 = toCvMat(mat);
+    cv::Mat diff;
+    cv::absdiff(cvMat, cvMat2, diff);
+    cv::Scalar s = cv::sum(diff);
+    return s[0] / (cvMat.rows * cvMat.cols);
+}
+
+#define assert_eq(cvMat, mat)                                                                                \
+    {                                                                                                        \
+        float diff = compare(cvMat, mat);                                                                    \
+        if (diff > 1e-3)                                                                                     \
+        {                                                                                                    \
+            std::cerr << "Assertion failed: " << #cvMat << " != " << #mat << " diff: " << diff << std::endl; \
+            cv::Mat _m1##cvMat, _m2##mat;                                                                    \
+            cv::normalize(cvMat, _m1##cvMat, 0, 255, cv::NORM_MINMAX, CV_8U);                               \
+            cv::normalize(toCvMat(mat), _m2##mat, 0, 255, cv::NORM_MINMAX, CV_8U);                          \
+            cv::imwrite(std::string(#cvMat) + ".png", _m1##cvMat);                                           \
+            cv::imwrite(std::string(#mat) + ".png", _m2##mat);                                               \
+        }                                                                                                    \
+    }

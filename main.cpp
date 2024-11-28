@@ -10,8 +10,8 @@
 #include "timeit.h"
 #include "test_helper.hpp"
 #include <vector>
-#define ROWS 1024
-#define COLS 1280
+#define DEFAULT_ROWS 1024
+#define DEFAULT_COLS 1280
 
 template <size_t _rows, size_t _cols, typename T>
 fkZQ::Matrix<T> FixedMatrix()
@@ -19,8 +19,14 @@ fkZQ::Matrix<T> FixedMatrix()
     return fkZQ::Matrix<T>(_rows, _cols);
 }
 
-int main()
+int main(int argc, char const *argv[])
 {
+    size_t ROWS = DEFAULT_ROWS, COLS = DEFAULT_COLS;
+    if (argc == 3)
+    {
+        ROWS = std::atoi(argv[1]);
+        COLS = std::atoi(argv[2]);
+    }
     cv::Mat cvmatab(ROWS, COLS, CV_32F);
     cv::Mat cvmataa(ROWS, ROWS, CV_32F);
     cv::Mat cvmatba(COLS, ROWS, CV_32F);
@@ -127,5 +133,6 @@ int main()
 
     assert_eq(cvbox, pbox);
 
+    std::cout << "done" << std::endl;
     return 0;
 }

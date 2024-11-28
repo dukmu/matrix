@@ -19,13 +19,15 @@ namespace fkZQ
         this->clear();
     }
     template <typename T>
-    Matrix<T>::Matrix() : _data(nullptr), rows(0), cols(0) {}
+    Matrix<T>::Matrix() : _data(nullptr), rows(0), cols(0), step(0), size(0) {}
     template <typename T>
     Matrix<T>::Matrix(Matrix<T> &&other) // move constructor
     {
         this->_data = nullptr;
         this->rows = other.rows;
         this->cols = other.cols;
+        this->step = other.step;
+        this->size = other.size;
         std::swap(this->_data, other._data);
     }
     template <typename T>
@@ -34,8 +36,8 @@ namespace fkZQ
         FKZQ_NEW
         this->rows = other.rows;
         this->cols = other.cols;
-        this->_data = (T *)AlignedMalloc<T>(this->rows * this->cols * sizeof(T));
-        memcpy(this->_data, other._data, this->rows * this->cols * sizeof(T));
+        this->_data = (T *)AlignedMalloc<T>(this->rows, this->cols, this->step, this->size);
+        memcpy(this->_data, other._data, this->size);
     }
     template <typename T>
     Matrix<T>::Matrix(size_t _rows, size_t _cols)
@@ -43,16 +45,26 @@ namespace fkZQ
         FKZQ_NEW
         this->rows = _rows;
         this->cols = _cols;
-        this->_data = (T *)AlignedMalloc<T>(this->rows * this->cols * sizeof(T));
+        this->_data = (T *)AlignedMalloc<T>(this->rows, this->cols, this->step, this->size);
     }
     template <typename T>
-    Matrix<T>::Matrix(size_t _rows, size_t _cols, const T *_data)
+    Matrix<T>::Matrix(size_t _rows, size_t _cols, const T *_data, bool aligned)
     {
         FKZQ_NEW
         this->rows = _rows;
         this->cols = _cols;
-        this->_data = (T *)AlignedMalloc<T>(this->rows * this->cols * sizeof(T));
-        memcpy(this->_data, _data, this->rows * this->cols * sizeof(T));
+        this->_data = (T *)AlignedMalloc<T>(this->rows, this->cols, this->step, this->size);
+        if (aligned)
+        {
+            memcpy(this->_data, _data, this->size);
+        }
+        else
+        {
+            for (size_t i = 0; i < this->rows; i++)
+            {
+                memcpy(this->ptr(i), _data + i * this->cols, this->cols * sizeof(T));
+            }
+        }
     }
     template <typename T>
     void Matrix<T>::create(size_t _rows, size_t _cols)
@@ -61,7 +73,7 @@ namespace fkZQ
         this->clear();
         this->rows = _rows;
         this->cols = _cols;
-        this->_data = (T *)AlignedMalloc<T>(this->rows * this->cols * sizeof(T));
+        this->_data = (T *)AlignedMalloc<T>(this->rows, this->cols, this->step, this->size);
     }
     template <typename T>
     inline bool Matrix<T>::isContinuous() { return true; }
@@ -81,7 +93,7 @@ namespace fkZQ
     template <typename T>
     inline void Matrix<T>::setZero()
     {
-        memset(this->_data, 0, this->rows * this->cols * sizeof(T));
+        memset(this->_data, 0, this->size);
     }
 
     template <typename T>
@@ -92,7 +104,7 @@ namespace fkZQ
     template <typename T>
     inline size_t Matrix<T>::row() { return rows; }
     template <typename T>
-    inline size_t Matrix<T>::size() { return rows * cols; }
+    inline size_t Matrix<T>::elements() { return rows * step; }
 
     template <typename T>
     inline T Matrix<T>::operator[](size_t index) { return this->at(index); }
@@ -102,12 +114,12 @@ namespace fkZQ
     template <typename T>
     inline T &Matrix<T>::at(size_t index) const { return this->_data[index]; }
     template <typename T>
-    inline T &Matrix<T>::at(size_t row, size_t col) const { return this->_data[row * this->cols + col]; }
+    inline T &Matrix<T>::at(size_t row, size_t col) const { return this->_data[row * this->step + col]; }
 
     template <typename T>
-    inline T *Matrix<T>::ptr(size_t row) { return this->_data + row * this->cols; }
+    inline T *Matrix<T>::ptr(size_t row) { return this->_data + row * this->step; }
     template <typename T>
-    inline T *Matrix<T>::ptr(size_t row, size_t col) { return this->_data + row * this->cols + col; }
+    inline T *Matrix<T>::ptr(size_t row, size_t col) { return this->_data + row * this->step + col; }
 
     template <typename T>
     bool inline Matrix<T>::empty() { return this->_data == nullptr || this->rows == 0 || this->cols == 0; }
@@ -128,11 +140,11 @@ namespace fkZQ
             {
                 if (dFlag)
                 {
-                    o << std::setw(12) << mat._data[i * mat.cols() + j] << ' ';
+                    o << std::setw(12) << mat.at(i, j) << ' ';
                 }
                 else
                 {
-                    o << mat._data[i * mat.cols() + j] << ' ';
+                    o << mat.at(i, j) << ' ';
                 }
             }
 
@@ -154,7 +166,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] + other._data[i];
         }
@@ -162,7 +174,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *b = (simd<T> *)other._data;
         simd<T> *c = (simd<T> *)ret._data;
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] + b[i];
@@ -176,7 +188,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] + other;
         }
@@ -184,7 +196,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *c = (simd<T> *)ret._data;
         simd<T> b(other);
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] + b;
@@ -200,7 +212,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] - other._data[i];
         }
@@ -208,7 +220,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *b = (simd<T> *)other._data;
         simd<T> *c = (simd<T> *)ret._data;
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] - b[i];
@@ -222,7 +234,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] - other;
         }
@@ -230,7 +242,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *c = (simd<T> *)ret._data;
         simd<T> b(other);
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] - b;
@@ -258,14 +270,15 @@ namespace fkZQ
             }
         }
 #else
+        Matrix<T> other_T = other.transpose();
         for (size_t i = 0; i < this->rows; ++i)
         {
             for (size_t j = 0; j < other.cols; ++j)
             {
-                simd<T> *a = (simd<T> *)(this->_data + i * this->cols);
-                simd<T> *b = (simd<T> *)(other._data + j);
+                simd<T> *a = (simd<T> *)(this->_data + i * this->step);
+                simd<T> *b = (simd<T> *)(other_T._data + j * other_T.step);
                 simd<T> sum(0);
-                int n = this->cols / simd<T>::size();
+                int n = this->step / simd<T>::size();
                 for (int k = 0; k < n; ++k)
                 {
                     sum += a[k] * b[k];
@@ -287,7 +300,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] * other;
         }
@@ -295,7 +308,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *c = (simd<T> *)ret._data;
         simd<T> b(other);
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] * b;
@@ -311,7 +324,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] * other._data[i];
         }
@@ -319,7 +332,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *b = (simd<T> *)other._data;
         simd<T> *c = (simd<T> *)ret._data;
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] * b[i];
@@ -335,7 +348,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] / other._data[i];
         }
@@ -343,7 +356,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *b = (simd<T> *)other._data;
         simd<T> *c = (simd<T> *)ret._data;
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] / b[i];
@@ -357,7 +370,7 @@ namespace fkZQ
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] / other;
         }
@@ -365,7 +378,7 @@ namespace fkZQ
         simd<T> *a = (simd<T> *)this->_data;
         simd<T> *c = (simd<T> *)ret._data;
         simd<T> b(other);
-        size_t n = this->size() / simd<T>::size();
+        size_t n = this->elements() / simd<T>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = a[i] / b;
@@ -374,14 +387,14 @@ namespace fkZQ
     }
 
     template <typename T>
-    Matrix<T> Matrix<T>::transpose()
+    Matrix<T> Matrix<T>::transpose() const
     {
         Matrix<T> ret(this->cols, this->rows);
         for (size_t i = 0; i < this->rows; ++i)
         {
             for (size_t j = 0; j < this->cols; ++j)
             {
-                ret._data[j * this->rows + i] = this->_data[i * this->cols + j];
+                ret._data[j * ret.step + i] = this->_data[i * this->step + j];
             }
         }
         return ret;
@@ -394,8 +407,8 @@ namespace fkZQ
         this->clear();
         this->rows = other.rows;
         this->cols = other.cols;
-        this->_data = (T *)AlignedMalloc<T>(this->rows * this->cols * sizeof(T));
-        memcpy(this->_data, other._data, this->rows * this->cols * sizeof(T));
+        this->_data = (T *)AlignedMalloc<T>(this->rows, this->cols, this->step, this->size);
+        memcpy(this->_data, other._data, this->size);
     }
 
     template <typename T>
@@ -405,9 +418,13 @@ namespace fkZQ
         this->rows = other.rows;
         this->cols = other.cols;
         this->_data = other._data;
+        this->step = other.step;
+        this->size = other.size;
         other._data = nullptr;
         other.rows = 0;
         other.cols = 0;
+        other.step = 0;
+        other.size = 0;
     }
 
     template <typename T>
@@ -495,7 +512,7 @@ namespace fkZQ
     {
         Matrix<U> ret(mat.rows, mat.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < mat.size(); ++i)
+        for (size_t i = 0; i < mat.elements(); ++i)
         {
             ret._data[i] = other - mat._data[i];
         }
@@ -503,7 +520,7 @@ namespace fkZQ
         simd<U> *a = (simd<U> *)mat._data;
         simd<U> *c = (simd<U> *)ret._data;
         simd<U> b(other);
-        size_t n = mat.size() / simd<U>::size();
+        size_t n = mat.elements() / simd<U>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = b - a[i];
@@ -525,7 +542,7 @@ namespace fkZQ
     {
         Matrix<U> ret(mat.rows, mat.cols);
 #ifndef _USE_SIMD
-        for (size_t i = 0; i < mat.size(); ++i)
+        for (size_t i = 0; i < mat.elements(); ++i)
         {
             ret._data[i] = other / mat._data[i];
         }
@@ -533,7 +550,7 @@ namespace fkZQ
         simd<U> *a = (simd<U> *)mat._data;
         simd<U> *c = (simd<U> *)ret._data;
         simd<U> b(other);
-        size_t n = mat.size() / simd<U>::size();
+        size_t n = mat.elements() / simd<U>::size();
         for (size_t i = 0; i < n; ++i)
         {
             c[i] = b / a[i];
