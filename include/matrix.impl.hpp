@@ -165,7 +165,7 @@ namespace fkZQ
         assert(this->cols == other.cols);
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] + other._data[i];
@@ -187,7 +187,7 @@ namespace fkZQ
     {
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] + other;
@@ -211,7 +211,7 @@ namespace fkZQ
         assert(this->cols == other.cols);
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] - other._data[i];
@@ -233,7 +233,7 @@ namespace fkZQ
     {
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] - other;
@@ -256,7 +256,7 @@ namespace fkZQ
         assert(this->cols == other.rows);
         assert(this->rows == ret.rows);
         assert(other.cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->rows; ++i)
         {
             for (size_t j = 0; j < other.cols; ++j)
@@ -299,7 +299,7 @@ namespace fkZQ
     {
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] * other;
@@ -323,7 +323,7 @@ namespace fkZQ
         assert(this->cols == other.cols);
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] * other._data[i];
@@ -347,7 +347,7 @@ namespace fkZQ
         assert(this->cols == other.cols);
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] / other._data[i];
@@ -369,7 +369,7 @@ namespace fkZQ
     {
         assert(this->rows == ret.rows);
         assert(this->cols == ret.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < this->elements(); ++i)
         {
             ret._data[i] = this->_data[i] / other;
@@ -511,7 +511,7 @@ namespace fkZQ
     Matrix<U> operator-(const U &other, const Matrix<U> &mat)
     {
         Matrix<U> ret(mat.rows, mat.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < mat.elements(); ++i)
         {
             ret._data[i] = other - mat._data[i];
@@ -541,7 +541,7 @@ namespace fkZQ
     Matrix<U> operator/(const U &other, const Matrix<U> &mat)
     {
         Matrix<U> ret(mat.rows, mat.cols);
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         for (size_t i = 0; i < mat.elements(); ++i)
         {
             ret._data[i] = other / mat._data[i];

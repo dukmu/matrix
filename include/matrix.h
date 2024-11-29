@@ -1,6 +1,6 @@
 #pragma once
 
-#define _USE_SIMD
+#define _FKZQ_USE_SIMD
 
 #include <iostream>
 #include <cstdlib>
@@ -14,7 +14,7 @@
 #define FKZQ_DELETE
 #endif
 
-#ifdef _USE_SIMD
+#ifdef _FKZQ_USE_SIMD
 #include <experimental/simd>
 namespace stdx = std::experimental;
 #define simd stdx::native_simd
@@ -29,7 +29,7 @@ namespace fkZQ
     void *AlignedMalloc(size_t size, bool zero = true)
     {
         void *ptr = nullptr;
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         ptr = malloc(size);
 #else
         size_t align = sizeof(simd<T>);
@@ -42,7 +42,7 @@ namespace fkZQ
         }
         else
         {
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
             memset(ptr, 0, size);
 #else
             memset(ptr, 0, (size + align - 1) / align * align);
@@ -54,10 +54,10 @@ namespace fkZQ
     void *AlignedMalloc(size_t row, size_t col, size_t &step, size_t &size, bool zero = true)
     {
         void *ptr = nullptr;
-#ifndef _USE_SIMD
-        ptr = malloc(size);
+#ifndef _FKZQ_USE_SIMD
         step = col;
         size = row * step * sizeof(T);
+        ptr = malloc(size);
 #else
         size_t align = sizeof(simd<T>);
         step = ((col * sizeof(T) + align - 1) / align * align) / sizeof(T);
@@ -77,7 +77,7 @@ namespace fkZQ
     }
     inline void AlignedFree(void *ptr)
     {
-#ifndef _USE_SIMD
+#ifndef _FKZQ_USE_SIMD
         free(ptr);
 #else
         _aligned_free(ptr);
@@ -152,7 +152,7 @@ namespace fkZQ
         void div(Matrix<T> &ret, const T &other);
 
     public:
-        Matrix<T> transpose()  const;
+        Matrix<T> transpose() const;
         void operator=(const Matrix<T> &other); // copy assignment
         void operator=(Matrix<T> &&other);      // move assignment
         Matrix<T> operator+(const Matrix<T> &other);
